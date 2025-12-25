@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useAuth } from 'react-oidc-context'
 import LandingPage from './components/LandingPage'
 import Dashboard from './components/Dashboard'
@@ -5,9 +6,17 @@ import LoadingScreen from './components/LoadingScreen'
 
 function App() {
   const auth = useAuth()
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
 
-  // Handle loading state
-  if (auth.isLoading) {
+  // Track when initial load is complete
+  useEffect(() => {
+    if (!auth.isLoading && !hasLoadedOnce) {
+      setHasLoadedOnce(true)
+    }
+  }, [auth.isLoading, hasLoadedOnce])
+
+  // Only show loading screen on INITIAL load, not during silent refresh
+  if (auth.isLoading && !hasLoadedOnce && !auth.isAuthenticated) {
     return <LoadingScreen message="Connecting to RHBK..." />
   }
 
@@ -50,7 +59,7 @@ function App() {
     return <LandingPage onLogin={() => auth.signinRedirect()} />
   }
 
-  // Show dashboard if authenticated
+  // Show dashboard if authenticated (even if isLoading during refresh)
   return <Dashboard />
 }
 

@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useAuth } from 'react-oidc-context'
 import { jwtDecode } from 'jwt-decode'
 import { 
   User, LogOut, Shield, Users, Key, Lock, 
   FileJson, Eye, Settings, Code, Terminal,
-  Crown, Wrench, BookOpen, RefreshCw
+  Crown, Wrench, BookOpen, RefreshCw, Check
 } from 'lucide-react'
 import UserInfoCard from './UserInfoCard'
 import TokenViewer from './TokenViewer'
@@ -16,50 +16,15 @@ export default function Dashboard() {
   const auth = useAuth()
   const user = auth.user
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const hasRefreshedOnMount = useRef(false)
-
-  // Auto-refresh token on page load to get latest groups/roles
-  useEffect(() => {
-    // Only run once per mount, and not right after login
-    if (hasRefreshedOnMount.current) return
-    
-    const justLoggedIn = sessionStorage.getItem('rhbk_just_logged_in')
-    if (justLoggedIn) {
-      sessionStorage.removeItem('rhbk_just_logged_in')
-      console.log('Skipping auto-refresh - just logged in')
-      hasRefreshedOnMount.current = true
-      return
-    }
-
-    // Delay to ensure auth state is stable
-    const timer = setTimeout(async () => {
-      if (auth.isAuthenticated && user && !hasRefreshedOnMount.current) {
-        hasRefreshedOnMount.current = true
-        try {
-          console.log('Auto-refreshing token on page load...')
-          await auth.signinSilent()
-          console.log('Token refreshed successfully')
-        } catch (error) {
-          console.log('Silent refresh failed (using cached token):', error.message)
-        }
-      }
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [auth.isAuthenticated, user])
-
-  // Refresh token to get updated groups/roles
-  const handleRefreshPermissions = async () => {
-    setIsRefreshing(true)
-    try {
-      await auth.signinSilent()
-    } catch (error) {
-      console.error('Failed to refresh token:', error)
-      // If silent refresh fails, redirect to login
-      await auth.signinRedirect()
-    }
-    setIsRefreshing(false)
-  }
+  const [changedSections, setChangedSections] = useState({
+    groups: false,
+    admin: false,
+    developer: false,
+    viewer: false
+  })
+  
+  // Store previous state before refresh
+  const prevStateRef = useRef(null)
   
   // Decode tokens
   let accessTokenDecoded = null
@@ -85,6 +50,71 @@ export default function Dashboard() {
   const isAdmin = groups.includes('ocp-admins') || groups.includes('Whitelist') || realmRoles.includes('admin')
   const isDeveloper = groups.includes('ocp-developers') || realmRoles.includes('developer')
   const isViewer = groups.includes('ocp-viewers') || realmRoles.includes('viewer')
+
+  // Refresh token to get updated groups/roles (in-place, no page reload)
+  const handleRefreshPermissions = async () => {
+    if (isRefreshing) return // Prevent double-clicks
+    
+    // Store current state before refresh
+    prevStateRef.current = {
+      groups: [...groups],
+      isAdmin,
+      isDeveloper,
+      isViewer
+    }
+    
+    setIsRefreshing(true)
+    setChangedSections({ groups: false, admin: false, developer: false, viewer: false })
+    
+    try {
+      console.log('Refreshing permissions...')
+      await auth.signinSilent()
+      console.log('Permissions refreshed!')
+      
+      // Compare will happen on next render after state updates
+      setTimeout(() => {
+        const prev = prevStateRef.current
+        if (prev) {
+          // Decode new tokens
+          const newToken = jwtDecode(auth.user?.access_token || '')
+          const newGroups = newToken?.groups || []
+          const newIsAdmin = newGroups.includes('ocp-admins') || newGroups.includes('Whitelist')
+          const newIsDeveloper = newGroups.includes('ocp-developers')
+          const newIsViewer = newGroups.includes('ocp-viewers')
+          
+          // Check what changed
+          const groupsChanged = JSON.stringify(prev.groups.sort()) !== JSON.stringify(newGroups.sort())
+          const adminChanged = prev.isAdmin !== newIsAdmin
+          const developerChanged = prev.isDeveloper !== newIsDeveloper
+          const viewerChanged = prev.isViewer !== newIsViewer
+          
+          console.log('Changes detected:', { groupsChanged, adminChanged, developerChanged, viewerChanged })
+          
+          setChangedSections({
+            groups: groupsChanged,
+            admin: adminChanged,
+            developer: developerChanged,
+            viewer: viewerChanged
+          })
+          
+          // Clear highlights after 3 seconds
+          setTimeout(() => {
+            setChangedSections({ groups: false, admin: false, developer: false, viewer: false })
+          }, 3000)
+        }
+        setIsRefreshing(false)
+      }, 100)
+    } catch (error) {
+      console.error('Refresh failed:', error.message)
+      setIsRefreshing(false)
+      if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+        await auth.signinRedirect()
+      }
+    }
+  }
+  
+  // Check if refresh button should show success (any changes detected)
+  const hasChanges = changedSections.groups || changedSections.admin || changedSections.developer || changedSections.viewer
 
   return (
     <div className="min-h-screen animated-bg text-white">
@@ -124,10 +154,18 @@ export default function Dashboard() {
             <button 
               onClick={handleRefreshPermissions}
               disabled={isRefreshing}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+              className={`p-2 rounded-lg transition-all duration-300 ${
+                hasChanges 
+                  ? 'bg-green-500/20 text-green-400' 
+                  : 'hover:bg-white/10 disabled:opacity-50'
+              }`}
               title="Refresh Permissions (get updated groups)"
             >
-              <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {hasChanges ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              )}
             </button>
             
             <button 
@@ -183,7 +221,12 @@ export default function Dashboard() {
           </div>
           
           {/* Groups & Roles */}
-          <div className="lg:col-span-2 animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <div 
+            className={`lg:col-span-2 animate-slide-up transition-all duration-500 rounded-2xl ${
+              changedSections.groups ? 'ring-2 ring-green-500 ring-offset-2 ring-offset-transparent shadow-lg shadow-green-500/20' : ''
+            }`} 
+            style={{ animationDelay: '200ms' }}
+          >
             <GroupsRolesCard 
               groups={groups} 
               realmRoles={realmRoles} 
@@ -204,30 +247,42 @@ export default function Dashboard() {
           </p>
           
           <div className="grid md:grid-cols-3 gap-6">
-            <RoleBasedSection
-              title="Admin Panel"
-              description="System configuration, user management, and audit logs"
-              icon={Crown}
-              color="red"
-              hasAccess={isAdmin}
-              requiredRole="ocp-admins or admin role"
-            />
-            <RoleBasedSection
-              title="Developer Tools"
-              description="API documentation, debugging tools, and deployment configs"
-              icon={Code}
-              color="blue"
-              hasAccess={isDeveloper || isAdmin}
-              requiredRole="ocp-developers or developer role"
-            />
-            <RoleBasedSection
-              title="Resource Viewer"
-              description="View dashboards, reports, and monitoring data"
-              icon={Eye}
-              color="green"
-              hasAccess={isViewer || isDeveloper || isAdmin}
-              requiredRole="ocp-viewers or viewer role"
-            />
+            <div className={`transition-all duration-500 rounded-2xl ${
+              changedSections.admin ? 'ring-2 ring-green-500 shadow-lg shadow-green-500/20' : ''
+            }`}>
+              <RoleBasedSection
+                title="Admin Panel"
+                description="System configuration, user management, and audit logs"
+                icon={Crown}
+                color="red"
+                hasAccess={isAdmin}
+                requiredRole="ocp-admins or admin role"
+              />
+            </div>
+            <div className={`transition-all duration-500 rounded-2xl ${
+              changedSections.developer ? 'ring-2 ring-green-500 shadow-lg shadow-green-500/20' : ''
+            }`}>
+              <RoleBasedSection
+                title="Developer Tools"
+                description="API documentation, debugging tools, and deployment configs"
+                icon={Code}
+                color="blue"
+                hasAccess={isDeveloper || isAdmin}
+                requiredRole="ocp-developers or developer role"
+              />
+            </div>
+            <div className={`transition-all duration-500 rounded-2xl ${
+              changedSections.viewer ? 'ring-2 ring-green-500 shadow-lg shadow-green-500/20' : ''
+            }`}>
+              <RoleBasedSection
+                title="Resource Viewer"
+                description="View dashboards, reports, and monitoring data"
+                icon={Eye}
+                color="green"
+                hasAccess={isViewer || isDeveloper || isAdmin}
+                requiredRole="ocp-viewers or viewer role"
+              />
+            </div>
           </div>
         </div>
 
