@@ -413,7 +413,7 @@ The app demonstrates role-based sections with visual feedback:
 
 | Section | Required Group/Role | Color |
 |---------|-------------------|-------|
-| Admin Panel | `ocp-admins` or `Whitelist` | 🔴 Red |
+| Admin Panel | `ocp-admins` | 🔴 Red |
 | Developer Tools | `ocp-developers` | 🔵 Blue |
 | Resource Viewer | `ocp-viewers` | 🟢 Green |
 
@@ -424,7 +424,6 @@ The app demonstrates role-based sections with visual feedback:
    - `ocp-admins` - For admin access
    - `ocp-developers` - For developer access  
    - `ocp-viewers` - For read-only access
-   - `Whitelist` - Alternative admin group
 
 ### Demo Flow
 
@@ -511,3 +510,4 @@ The User Profile card displays:
 ## License
 
 MIT
+
