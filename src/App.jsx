@@ -23,12 +23,23 @@ function App() {
           </div>
           <h2 className="text-xl font-semibold text-white mb-2">Authentication Error</h2>
           <p className="text-gray-400 mb-6">{auth.error.message}</p>
-          <button 
-            onClick={() => auth.signinRedirect()}
-            className="px-6 py-3 bg-rhbk-500 hover:bg-rhbk-600 text-white rounded-xl font-medium transition-all"
-          >
-            Try Again
-          </button>
+          <div className="flex gap-3 justify-center">
+            <button 
+              onClick={() => {
+                sessionStorage.clear()
+                window.location.href = '/'
+              }}
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all"
+            >
+              Clear & Retry
+            </button>
+            <button 
+              onClick={() => auth.signinRedirect()}
+              className="px-6 py-3 bg-rhbk-500 hover:bg-rhbk-600 text-white rounded-xl font-medium transition-all"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -44,4 +55,3 @@ function App() {
 }
 
 export default App
-

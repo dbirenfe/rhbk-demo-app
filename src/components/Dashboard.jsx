@@ -1,9 +1,10 @@
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from 'react-oidc-context'
 import { jwtDecode } from 'jwt-decode'
 import { 
   User, LogOut, Shield, Users, Key, Lock, 
   FileJson, Eye, Settings, Code, Terminal,
-  Crown, Wrench, BookOpen
+  Crown, Wrench, BookOpen, RefreshCw
 } from 'lucide-react'
 import UserInfoCard from './UserInfoCard'
 import TokenViewer from './TokenViewer'
@@ -14,6 +15,51 @@ import OIDCFlowCard from './OIDCFlowCard'
 export default function Dashboard() {
   const auth = useAuth()
   const user = auth.user
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const hasRefreshedOnMount = useRef(false)
+
+  // Auto-refresh token on page load to get latest groups/roles
+  useEffect(() => {
+    // Only run once per mount, and not right after login
+    if (hasRefreshedOnMount.current) return
+    
+    const justLoggedIn = sessionStorage.getItem('rhbk_just_logged_in')
+    if (justLoggedIn) {
+      sessionStorage.removeItem('rhbk_just_logged_in')
+      console.log('Skipping auto-refresh - just logged in')
+      hasRefreshedOnMount.current = true
+      return
+    }
+
+    // Delay to ensure auth state is stable
+    const timer = setTimeout(async () => {
+      if (auth.isAuthenticated && user && !hasRefreshedOnMount.current) {
+        hasRefreshedOnMount.current = true
+        try {
+          console.log('Auto-refreshing token on page load...')
+          await auth.signinSilent()
+          console.log('Token refreshed successfully')
+        } catch (error) {
+          console.log('Silent refresh failed (using cached token):', error.message)
+        }
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [auth.isAuthenticated, user])
+
+  // Refresh token to get updated groups/roles
+  const handleRefreshPermissions = async () => {
+    setIsRefreshing(true)
+    try {
+      await auth.signinSilent()
+    } catch (error) {
+      console.error('Failed to refresh token:', error)
+      // If silent refresh fails, redirect to login
+      await auth.signinRedirect()
+    }
+    setIsRefreshing(false)
+  }
   
   // Decode tokens
   let accessTokenDecoded = null
@@ -76,6 +122,15 @@ export default function Dashboard() {
             </div>
             
             <button 
+              onClick={handleRefreshPermissions}
+              disabled={isRefreshing}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+              title="Refresh Permissions (get updated groups)"
+            >
+              <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
+            
+            <button 
               onClick={() => auth.signoutRedirect()}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               title="Sign Out"
@@ -124,7 +179,7 @@ export default function Dashboard() {
         <div className="grid lg:grid-cols-3 gap-6 mb-8">
           {/* User Info */}
           <div className="lg:col-span-1 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            <UserInfoCard user={user} />
+            <UserInfoCard user={user} idToken={idTokenDecoded} accessToken={accessTokenDecoded} />
           </div>
           
           {/* Groups & Roles */}

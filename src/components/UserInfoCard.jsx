@@ -1,15 +1,20 @@
-import { User, Mail, Clock, Fingerprint, Globe } from 'lucide-react'
+import { User, Mail, Clock, Fingerprint, Globe, Calendar } from 'lucide-react'
 
-export default function UserInfoCard({ user }) {
+export default function UserInfoCard({ user, idToken, accessToken }) {
   const profile = user?.profile || {}
+  
+  // Get auth_time from ID token (more reliable than profile)
+  const authTime = idToken?.auth_time || profile.auth_time
+  const tokenExpiry = accessToken?.exp
   
   const infoItems = [
     { icon: User, label: "Username", value: profile.preferred_username },
-    { icon: User, label: "Full Name", value: profile.name },
+    { icon: User, label: "Full Name", value: profile.name || `${profile.given_name || ''} ${profile.family_name || ''}`.trim() },
     { icon: Mail, label: "Email", value: profile.email },
     { icon: Fingerprint, label: "Subject ID", value: profile.sub?.slice(0, 16) + '...' },
-    { icon: Globe, label: "Issuer", value: user?.profile?.iss?.split('/').pop() },
-    { icon: Clock, label: "Auth Time", value: profile.auth_time ? new Date(profile.auth_time * 1000).toLocaleTimeString() : 'N/A' },
+    { icon: Globe, label: "Realm", value: idToken?.iss?.split('/').pop() || profile.iss?.split('/').pop() },
+    { icon: Clock, label: "Auth Time", value: authTime ? new Date(authTime * 1000).toLocaleTimeString() : 'N/A' },
+    { icon: Calendar, label: "Token Expires", value: tokenExpiry ? new Date(tokenExpiry * 1000).toLocaleTimeString() : 'N/A' },
   ]
 
   return (
@@ -58,4 +63,3 @@ export default function UserInfoCard({ user }) {
     </div>
   )
 }
-
