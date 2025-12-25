@@ -124,6 +124,17 @@ To test, add users to these groups in RHBK.
 | `RHBK_CLIENT_ID` | OIDC client ID | `rhbk-demo` |
 | `RHBK_CLIENT_SECRET` | OIDC client secret | (required) |
 
+## Build with Podman
+
+```bash
+# Build the image
+podman build -t quay.io/dbirenfe/rhbk-demo-app:latest .
+
+# Push to Quay.io
+podman login quay.io
+podman push quay.io/dbirenfe/rhbk-demo-app:latest
+```
+
 ## Tech Stack
 
 - **React 18** - UI framework
@@ -132,6 +143,8 @@ To test, add users to these groups in RHBK.
 - **react-oidc-context** - OIDC authentication
 - **lucide-react** - Icons
 - **jwt-decode** - JWT parsing
+- **Red Hat UBI 9** - Base image for Node.js build
+- **nginx-unprivileged** - Production runtime from Quay.io
 
 ## License
 

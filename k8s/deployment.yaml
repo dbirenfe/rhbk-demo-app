@@ -43,7 +43,7 @@ spec:
     spec:
       containers:
         - name: rhbk-demo
-          image: rhbk-demo:latest
+          image: quay.io/dbirenfe/rhbk-demo-app:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
