@@ -1,4 +1,4 @@
-import { User, Key, Shield, ArrowRight, Check } from 'lucide-react'
+import { User, Key, Shield, ArrowRight, Check, ExternalLink, LogIn } from 'lucide-react'
 
 const steps = [
   {
@@ -46,7 +46,15 @@ const colorMap = {
   emerald: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' },
 }
 
-export default function OIDCFlowCard() {
+export default function OIDCFlowCard({ issuer }) {
+  // Build URLs from issuer
+  const baseUrl = issuer || window.__OIDC_CONFIG__?.authority || ''
+  const realmPath = baseUrl.includes('/realms/') ? baseUrl.split('/realms/')[1] : 'ocp'
+  const keycloakBase = baseUrl.replace(`/realms/${realmPath}`, '')
+  
+  const loginPageUrl = `${baseUrl}/account`
+  const discoveryUrl = `${baseUrl}/.well-known/openid-configuration`
+  const adminConsoleUrl = `${keycloakBase}/admin/${realmPath}/console`
   return (
     <div className="glass rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-6">
@@ -102,51 +110,97 @@ export default function OIDCFlowCard() {
         </div>
       </div>
 
-      {/* Technical Details */}
+      {/* Quick Access Links */}
       <div className="mt-8 pt-6 border-t border-white/10">
-        <h4 className="font-medium mb-4">Technical Details</h4>
+        <h4 className="font-medium mb-4 flex items-center gap-2">
+          <LogIn className="w-4 h-4 text-rhbk-500" />
+          Quick Access
+        </h4>
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <a 
+            href={loginPageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 bg-rhbk-500/10 border border-rhbk-500/30 rounded-xl hover:bg-rhbk-500/20 transition-colors group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-rhbk-400">Account Console</p>
+              <ExternalLink className="w-4 h-4 text-rhbk-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </div>
+            <p className="text-xs text-gray-500">Manage your profile & linked accounts</p>
+          </a>
+          <a 
+            href={discoveryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-colors group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-amber-400">Discovery Document</p>
+              <ExternalLink className="w-4 h-4 text-amber-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </div>
+            <p className="text-xs text-gray-500">OIDC configuration & endpoints</p>
+          </a>
+          <a 
+            href={adminConsoleUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl hover:bg-purple-500/20 transition-colors group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-purple-400">Admin Console</p>
+              <ExternalLink className="w-4 h-4 text-purple-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </div>
+            <p className="text-xs text-gray-500">Keycloak administration</p>
+          </a>
+        </div>
+      </div>
+
+      {/* Technical Details */}
+      <div className="pt-4 border-t border-white/10">
+        <h4 className="font-medium mb-4">OIDC Endpoints</h4>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="p-4 bg-white/5 rounded-xl">
             <p className="text-xs text-gray-400 mb-2">Authorization Endpoint</p>
             <code className="text-sm text-rhbk-400 font-mono break-all">
-              /realms/ocp/protocol/openid-connect/auth
+              /realms/{realmPath}/protocol/openid-connect/auth
             </code>
           </div>
           <div className="p-4 bg-white/5 rounded-xl">
             <p className="text-xs text-gray-400 mb-2">Token Endpoint</p>
             <code className="text-sm text-green-400 font-mono break-all">
-              /realms/ocp/protocol/openid-connect/token
+              /realms/{realmPath}/protocol/openid-connect/token
             </code>
           </div>
           <div className="p-4 bg-white/5 rounded-xl">
             <p className="text-xs text-gray-400 mb-2">UserInfo Endpoint</p>
             <code className="text-sm text-blue-400 font-mono break-all">
-              /realms/ocp/protocol/openid-connect/userinfo
+              /realms/{realmPath}/protocol/openid-connect/userinfo
             </code>
           </div>
           <div className="p-4 bg-white/5 rounded-xl">
             <p className="text-xs text-gray-400 mb-2">End Session Endpoint</p>
             <code className="text-sm text-purple-400 font-mono break-all">
-              /realms/ocp/protocol/openid-connect/logout
+              /realms/{realmPath}/protocol/openid-connect/logout
             </code>
           </div>
         </div>
       </div>
 
-      {/* OIDC Discovery */}
-      <div className="mt-4 p-4 bg-rhbk-500/10 border border-rhbk-500/20 rounded-xl">
+      {/* Discovery Document Info */}
+      <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-rhbk-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-rhbk-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div>
-            <p className="text-sm text-gray-300 mb-1">
-              <strong>Discovery Document:</strong> All OIDC endpoints are published at:
+          <div className="flex-1">
+            <p className="text-sm text-gray-300 mb-2">
+              <strong>Discovery Document (Full Path):</strong>
             </p>
-            <code className="text-xs text-rhbk-400 font-mono">
-              /.well-known/openid-configuration
+            <code className="text-xs text-amber-400 font-mono break-all block bg-black/20 p-2 rounded">
+              {baseUrl}/.well-known/openid-configuration
             </code>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useAuth } from 'react-oidc-context'
 import { jwtDecode } from 'jwt-decode'
 import { 
@@ -11,6 +11,7 @@ import TokenViewer from './TokenViewer'
 import GroupsRolesCard from './GroupsRolesCard'
 import RoleBasedSection from './RoleBasedSection'
 import OIDCFlowCard from './OIDCFlowCard'
+import IdentitySourceCard from './IdentitySourceCard'
 
 export default function Dashboard() {
   const auth = useAuth()
@@ -22,9 +23,6 @@ export default function Dashboard() {
     developer: false,
     viewer: false
   })
-  
-  // Store previous state before refresh
-  const prevStateRef = useRef(null)
   
   // Decode tokens
   let accessTokenDecoded = null
@@ -51,69 +49,70 @@ export default function Dashboard() {
   const isDeveloper = groups.includes('ocp-developers') || realmRoles.includes('developer')
   const isViewer = groups.includes('ocp-viewers') || realmRoles.includes('viewer')
 
-  // Refresh token to get updated groups/roles (in-place, no page reload)
+  // Refresh token to get updated groups/roles
   const handleRefreshPermissions = async () => {
-    if (isRefreshing) return // Prevent double-clicks
+    if (isRefreshing) return
     
-    // Store current state before refresh
-    prevStateRef.current = {
-      groups: [...groups],
-      isAdmin,
-      isDeveloper,
-      isViewer
-    }
+    // Store current state BEFORE refresh
+    const prevGroups = [...groups]
+    const prevIsAdmin = isAdmin
+    const prevIsDeveloper = isDeveloper
+    const prevIsViewer = isViewer
+    
+    console.log('=== REFRESH START ===')
+    console.log('Previous state:', { prevGroups, prevIsAdmin, prevIsDeveloper, prevIsViewer })
     
     setIsRefreshing(true)
     setChangedSections({ groups: false, admin: false, developer: false, viewer: false })
     
     try {
-      console.log('Refreshing permissions...')
       await auth.signinSilent()
-      console.log('Permissions refreshed!')
       
-      // Compare will happen on next render after state updates
-      setTimeout(() => {
-        const prev = prevStateRef.current
-        if (prev) {
-          // Decode new tokens
-          const newToken = jwtDecode(auth.user?.access_token || '')
-          const newGroups = newToken?.groups || []
-          const newIsAdmin = newGroups.includes('ocp-admins') || newGroups.includes('Whitelist')
-          const newIsDeveloper = newGroups.includes('ocp-developers')
-          const newIsViewer = newGroups.includes('ocp-viewers')
-          
-          // Check what changed
-          const groupsChanged = JSON.stringify(prev.groups.sort()) !== JSON.stringify(newGroups.sort())
-          const adminChanged = prev.isAdmin !== newIsAdmin
-          const developerChanged = prev.isDeveloper !== newIsDeveloper
-          const viewerChanged = prev.isViewer !== newIsViewer
-          
-          console.log('Changes detected:', { groupsChanged, adminChanged, developerChanged, viewerChanged })
-          
-          setChangedSections({
-            groups: groupsChanged,
-            admin: adminChanged,
-            developer: developerChanged,
-            viewer: viewerChanged
-          })
-          
-          // Clear highlights after 3 seconds
-          setTimeout(() => {
-            setChangedSections({ groups: false, admin: false, developer: false, viewer: false })
-          }, 3000)
-        }
-        setIsRefreshing(false)
-      }, 100)
+      // Wait a bit for auth state to update, then check new token
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Get new token from auth
+      const newToken = auth.user?.access_token
+      if (newToken) {
+        const decoded = jwtDecode(newToken)
+        const newGroups = decoded?.groups || []
+        const newIsAdmin = newGroups.includes('ocp-admins') || newGroups.includes('Whitelist')
+        const newIsDeveloper = newGroups.includes('ocp-developers')
+        const newIsViewer = newGroups.includes('ocp-viewers')
+        
+        console.log('New state:', { newGroups, newIsAdmin, newIsDeveloper, newIsViewer })
+        
+        // Compare
+        const groupsChanged = JSON.stringify(prevGroups.sort()) !== JSON.stringify(newGroups.sort())
+        const adminChanged = prevIsAdmin !== newIsAdmin
+        const developerChanged = prevIsDeveloper !== newIsDeveloper
+        const viewerChanged = prevIsViewer !== newIsViewer
+        
+        console.log('Changes:', { groupsChanged, adminChanged, developerChanged, viewerChanged })
+        
+        // Set highlights for changed sections
+        setChangedSections({
+          groups: groupsChanged,
+          admin: adminChanged,
+          developer: developerChanged,
+          viewer: viewerChanged
+        })
+        
+        // Clear highlights after 3 seconds
+        setTimeout(() => {
+          setChangedSections({ groups: false, admin: false, developer: false, viewer: false })
+        }, 3000)
+      }
+      
+      console.log('=== REFRESH COMPLETE ===')
     } catch (error) {
       console.error('Refresh failed:', error.message)
-      setIsRefreshing(false)
-      if (error.message?.includes('expired') || error.message?.includes('invalid')) {
-        await auth.signinRedirect()
-      }
     }
+    
+    setIsRefreshing(false)
   }
   
-  // Check if refresh button should show success (any changes detected)
+  // Check if any section changed (for button icon)
   const hasChanges = changedSections.groups || changedSections.admin || changedSections.developer || changedSections.viewer
 
   return (
@@ -235,6 +234,16 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Identity Source */}
+        <div className="mb-8 animate-slide-up" style={{ animationDelay: '300ms' }}>
+          <IdentitySourceCard 
+            idToken={idTokenDecoded}
+            accessToken={accessTokenDecoded}
+            accessTokenRaw={user?.access_token}
+            profile={user?.profile}
+          />
+        </div>
+
         {/* Role-Based Sections */}
         <div className="mb-8">
           <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -320,7 +329,7 @@ export default function Dashboard() {
 
         {/* OIDC Flow */}
         <div className="animate-slide-up" style={{ animationDelay: '500ms' }}>
-          <OIDCFlowCard />
+          <OIDCFlowCard issuer={idTokenDecoded?.iss || accessTokenDecoded?.iss} />
         </div>
       </main>
 
