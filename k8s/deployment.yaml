@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rhbk-demo
+  labels:
+    app: rhbk-demo
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rhbk-demo-oidc
+  namespace: rhbk-demo
+  labels:
+    app: rhbk-demo
+type: Opaque
+stringData:
+  # Update these values for your environment
+  RHBK_AUTHORITY: "https://keycloak.apps.cluster-4mbjq.dynamic.redhatworkshops.io/realms/ocp"
+  RHBK_CLIENT_ID: "rhbk-demo"
+  RHBK_CLIENT_SECRET: "rhbk-demo-secret-change-me"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rhbk-demo
+  namespace: rhbk-demo
+  labels:
+    app: rhbk-demo
+    app.kubernetes.io/name: rhbk-demo
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rhbk-demo
+  template:
+    metadata:
+      labels:
+        app: rhbk-demo
+    spec:
+      containers:
+        - name: rhbk-demo
+          image: rhbk-demo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: rhbk-demo-oidc
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rhbk-demo
+  namespace: rhbk-demo
+  labels:
+    app: rhbk-demo
+spec:
+  selector:
+    app: rhbk-demo
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rhbk-demo
+  namespace: rhbk-demo
+  labels:
+    app: rhbk-demo
+spec:
+  host: rhbk-demo.apps.cluster-4mbjq.dynamic.redhatworkshops.io
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: rhbk-demo
+    weight: 100
+  wildcardPolicy: None
+

@@ -1,0 +1,37 @@
+---
+# ImageStream for the built image
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: rhbk-demo
+  namespace: rhbk-demo
+  labels:
+    app: rhbk-demo
+spec:
+  lookupPolicy:
+    local: true
+
+---
+# BuildConfig to build from Git or local source
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: rhbk-demo
+  namespace: rhbk-demo
+  labels:
+    app: rhbk-demo
+spec:
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: rhbk-demo:latest
+  triggers:
+    - type: ConfigChange
+
