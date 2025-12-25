@@ -3,6 +3,7 @@ import { Lock, Check, X } from 'lucide-react'
 const colorClasses = {
   red: {
     bg: 'bg-rhbk-500/20',
+    hoverBg: 'hover:bg-rhbk-500/30',
     border: 'border-rhbk-500/30',
     text: 'text-rhbk-400',
     glow: 'glow-red',
@@ -11,6 +12,7 @@ const colorClasses = {
   },
   blue: {
     bg: 'bg-blue-500/20',
+    hoverBg: 'hover:bg-blue-500/30',
     border: 'border-blue-500/30',
     text: 'text-blue-400',
     glow: 'glow-blue',
@@ -19,6 +21,7 @@ const colorClasses = {
   },
   green: {
     bg: 'bg-green-500/20',
+    hoverBg: 'hover:bg-green-500/30',
     border: 'border-green-500/30',
     text: 'text-green-400',
     glow: 'glow-green',
@@ -27,6 +30,7 @@ const colorClasses = {
   },
   purple: {
     bg: 'bg-purple-500/20',
+    hoverBg: 'hover:bg-purple-500/30',
     border: 'border-purple-500/30',
     text: 'text-purple-400',
     glow: 'glow-purple',
@@ -48,8 +52,8 @@ export default function RoleBasedSection({
   return (
     <div 
       className={`
-        glass rounded-2xl p-6 transition-all duration-300
-        ${hasAccess ? `hover:${colors.bg} cursor-pointer` : 'opacity-60'}
+        glass rounded-2xl p-6 transition-all duration-300 h-full
+        ${hasAccess ? `${colors.hoverBg} cursor-pointer` : 'opacity-60'}
         ${hasAccess ? colors.glow : ''}
       `}
     >
